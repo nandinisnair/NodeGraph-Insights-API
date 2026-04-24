@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hierarchy Tree Builder | SRM Challenge</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        textarea {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin: 15px 0;
+        }
+        
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 16px;
+        }
+        
+        button:hover {
+            background: #764ba2;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        
+        .tree-card {
+            background: #f5f5f5;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+        }
+        
+        .tree {
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            margin-top: 10px;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+        
+        .badge-cycle {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .badge-tree {
+            background: #28a745;
+            color: white;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            display: none;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error {
+            background: #fee;
+            color: #c00;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            display: none;
+        }
+        
+        .tag-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .tag {
+            background: #e9ecef;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌳 Hierarchy Tree Builder</h1>
+        <p>Enter node relationships (format: X->Y, one per line)</p>
+        
+        <textarea id="input" rows="8" placeholder="A->B&#10;A->C&#10;B->D"></textarea>
+        
+        <div>
+            <button id="submitBtn">Process</button>
+            <button id="exampleBtn">Load Example</button>
+            <button id="clearBtn">Clear</button>
+        </div>
+        
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Processing...</p>
+        </div>
+        
+        <div id="error" class="error"></div>
+        
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5000/bfhl';
+        
+        const input = document.getElementById('input');
+        const submitBtn = document.getElementById('submitBtn');
+        const exampleBtn = document.getElementById('exampleBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const loading = document.getElementById('loading');
+        const error = document.getElementById('error');
+        const results = document.getElementById('results');
+        
+        exampleBtn.onclick = () => {
+            input.value = `A->B
+A->C
+B->D
+X->Y
+Y->Z
+Z->X
+P->Q
+Q->R
+G->H
+G->H
+hello
+1->2
+A->`;
+        };
+        
+        clearBtn.onclick = () => {
+            input.value = '';
+            results.innerHTML = '';
+            error.style.display = 'none';
+        };
+        
+        submitBtn.onclick = async () => {
+            const data = input.value.split('\n').filter(l => l.trim());
+            if (data.length === 0) {
+                showError('Please enter some data');
+                return;
+            }
+            
+            loading.style.display = 'block';
+            error.style.display = 'none';
+            results.innerHTML = '';
+            
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ data })
+                });
+                
+                const result = await response.json();
+                displayResults(result);
+            } catch (err) {
+                showError('Error: ' + err.message);
+            } finally {
+                loading.style.display = 'none';
+            }
+        };
+        
+        function showError(msg) {
+            error.textContent = msg;
+            error.style.display = 'block';
+        }
+        
+        function displayResults(data) {
+            let html = '';
+            
+            // Stats
+            html += `<div class="stats">
+                <div class="stat-card"><div>🌳 Trees</div><div class="stat-value">${data.summary.total_trees}</div></div>
+                <div class="stat-card"><div>🔄 Cycles</div><div class="stat-value">${data.summary.total_cycles}</div></div>
+                <div class="stat-card"><div>👑 Largest Root</div><div class="stat-value">${data.summary.largest_tree_root || 'N/A'}</div></div>
+                <div class="stat-card"><div>👤 User</div><div class="stat-value" style="font-size:1.2em">${data.user_id}</div></div>
+            </div>`;
+            
+            // Hierarchies
+            html += '<h3>📊 Hierarchies</h3>';
+            for (const h of data.hierarchies) {
+                const isCycle = h.has_cycle;
+                html += `<div class="tree-card">
+                    <strong>Root: ${h.root}</strong>
+                    ${isCycle ? '<span class="badge badge-cycle">⚠️ Cycle</span>' : `<span class="badge badge-tree">✓ Tree (Depth: ${h.depth})</span>`}
+                    <div class="tree"><pre>${formatTree(h.tree, h.root)}</pre></div>
+                </div>`;
+            }
+            
+            // Invalid entries
+            if (data.invalid_entries && data.invalid_entries.length > 0) {
+                html += `<h3>❌ Invalid Entries</h3>
+                    <div class="tree-card"><div class="tag-list">${data.invalid_entries.map(e => `<span class="tag">${escapeHtml(e)}</span>`).join('')}</div></div>`;
+            }
+            
+            // Duplicate edges
+            if (data.duplicate_edges && data.duplicate_edges.length > 0) {
+                html += `<h3>🔄 Duplicate Edges</h3>
+                    <div class="tree-card"><div class="tag-list">${data.duplicate_edges.map(e => `<span class="tag">${escapeHtml(e)}</span>`).join('')}</div></div>`;
+            }
+            
+            results.innerHTML = html;
+        }
+        
+        function formatTree(tree, root, indent = 0) {
+            if (Object.keys(tree).length === 0) return root;
+            let result = root + '\n';
+            
+            function print(obj, level) {
+                let str = '';
+                const entries = Object.entries(obj);
+                for (let i = 0; i < entries.length; i++) {
+                    const [key, value] = entries[i];
+                    const isLast = i === entries.length - 1;
+                    str += '  '.repeat(level) + (isLast ? '└── ' : '├── ') + key + '\n';
+                    if (Object.keys(value).length > 0) {
+                        str += print(value, level + 1);
+                    }
+                }
+                return str;
+            }
+            
+            result += print(tree, 1);
+            return result;
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
