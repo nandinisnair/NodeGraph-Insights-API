@@ -25,11 +25,11 @@ app.post('/bfhl', (req, res) => {
     // Build hierarchies from valid edges
     const { hierarchies, summary } = buildTreesFromEdges(validEdges);
     
-    // Your credentials
+    // Your credentials - UPDATE THESE
     const response = {
-      user_id: "nandini_15031995",  // Replace with your actual details
-      email_id: "nandini@college.edu",  // Replace with your actual email
-      college_roll_number: "21CS1001",  // Replace with your actual roll number
+      user_id: "nandini_15031995",
+      email_id: "nandini@college.edu",
+      college_roll_number: "21CS1001",
       hierarchies: hierarchies,
       invalid_entries: invalidEntries,
       duplicate_edges: duplicateEdges,

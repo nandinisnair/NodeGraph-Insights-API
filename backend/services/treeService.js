@@ -25,7 +25,6 @@ const buildTreesFromEdges = (edges) => {
   
   // Find connected components
   const components = findConnectedComponents(edges, allNodes);
-  
   const hierarchies = [];
   
   for (const component of components) {
@@ -52,13 +51,13 @@ const buildTreesFromEdges = (edges) => {
         }
       }
       
-      // If no root found (shouldn't happen for acyclic), use smallest node
+      // If no root found, use smallest node
       if (!root) {
         root = Array.from(nodes).sort()[0];
       }
       
       const tree = {};
-      const depth = buildTree(root, childrenMap, tree, new Set());
+      const depth = buildCorrectTree(root, childrenMap, tree);
       
       hierarchies.push({
         root: root,
@@ -178,7 +177,7 @@ const detectCycleInComponent = (nodes, edges) => {
   return false;
 };
 
-const buildTree = (node, childrenMap, treeObj, visited) => {
+const buildCorrectTree = (node, childrenMap, treeObj, visited = new Set()) => {
   visited.add(node);
   const children = childrenMap.get(node) || [];
   
@@ -192,8 +191,11 @@ const buildTree = (node, childrenMap, treeObj, visited) => {
   
   for (const child of children) {
     if (!visited.has(child)) {
-      const depth = buildTree(child, childrenMap, childObj, visited);
+      const depth = buildCorrectTree(child, childrenMap, childObj, visited);
       maxDepth = Math.max(maxDepth, depth);
+    } else {
+      // Handle already visited (should not happen in acyclic)
+      childObj[child] = {};
     }
   }
   
